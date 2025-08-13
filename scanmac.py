@@ -1,10 +1,3 @@
-#!/usr/bin/env python3
-# scanmac.py — OCR MAC từ ảnh (Termux, nhanh & 1 thanh tiến trình)
-# • Chỉ một thanh ngang duy nhất: xóa dòng & vẽ lại, auto-fit theo bề rộng terminal
-# • Không cache; mỗi lần chạy OCR toàn bộ ảnh hợp lệ
-# • Mỗi ảnh lấy MAC đầu tiên; mọi “O tròn” → số 0 (MAC không có chữ O)
-# • Chỉ ghi /storage/emulated/0/scanmac.txt khi có MAC
-
 import argparse, time, re, sys, shutil, os, subprocess
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -229,3 +222,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
