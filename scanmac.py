@@ -23,7 +23,6 @@ def term_cols(default=80):
 
 # ---- PROGRESS: 1 thanh, không wrap ----
 def progress_bar(done, total, *, force=False):
-    # throttle theo thời gian để mượt
     now = time.time()
     last = getattr(progress_bar, "_last", 0.0)
     if not force and (now - last) < 0.05 and done < total:
@@ -31,19 +30,18 @@ def progress_bar(done, total, *, force=False):
     progress_bar._last = now
 
     cols = term_cols()
-    # text phải in ngoài thân bar
     right_text = f" {done}/{total} {int((done/total if total else 1)*100):3d}%"
-    # khung: "[", "]" + khoảng trắng + right_text
     reserve = len(right_text) + 4
-    width = max(10, cols - reserve)  # thân bar
+    width = max(10, cols - reserve)
     pct = done/total if total else 1.0
     filled = int(pct * width)
     bar = "█"*filled + " "*(width - filled)
-    # XÓA DÒNG & in lại trên CÙNG 1 DÒNG
     sys.stdout.write("\r\033[2K" + GREEN + "[" + bar + "]" + RESET + right_text)
     sys.stdout.flush()
 
 # ---------- Regex MAC & chuẩn hoá ----------
+# Giữ đúng kí tự hợp lệ để tăng tốc
+ALLOW_ONLY = re.compile(r"[^0-9A-Fa-f:\.\-\s]+")  # mọi kí tự không hợp lệ -> loại
 PAT_COLON = re.compile(r"(?:\b|^)([0-9A-Fa-f]{2}[:\-]){5}[0-9A-Fa-f]{2}(?:\b|$)")
 PAT_DOT   = re.compile(r"(?:\b|^)[0-9A-Fa-f]{4}\.[0-9A-Fa-f]{4}\.[0-9A-Fa-f]{4}(?:\b|$)")
 PAT_RAW12 = re.compile(r"(?:\b|^)[0-9A-Fa-f]{12}(?:\b|$)")
@@ -54,13 +52,17 @@ CIRCLE_TO_ZERO = str.maketrans({
     "○":"0","◯":"0","●":"0","∘":"0","⚫":"0","⚪":"0","•":"0","∙":"0","◦":"0","〇":"0",
 })
 def circles_to_zero(s:str)->str: return s.translate(CIRCLE_TO_ZERO)
+
 def normalize_mac(s:str)->str:
     s = s.strip().upper().replace("-", ":")
     if "." in s: s = s.replace(".", "")
-    if ":" not in s and len(s)==12: s=":".join(s[i:i+2] for i in range(0,12,2))
+    if ":" not in s and len(s)==12:
+        s = ":".join(s[i:i+2] for i in range(0,12,2))
     return s
+
 def first_mac(text:str)->str|None:
-    text = circles_to_zero(text)
+    # 1) đổi mọi “O tròn” về '0'  2) LOẠI mọi kí tự KHÔNG thuộc 0-9 A-F a-f : . -
+    text = ALLOW_ONLY.sub(" ", circles_to_zero(text))
     for rx in (PAT_COLON, PAT_DOT, PAT_RAW12):
         m = rx.search(text)
         if m:
@@ -70,9 +72,12 @@ def first_mac(text:str)->str|None:
 
 # ---------- OCR (nhanh trước, chính xác sau) ----------
 def tess_cfgs():
+    # Chỉ whitelist 0-9 A-F a-f và : . - ; tắt từ điển để nhanh hơn
     base = ("--oem 3 --dpi 300 "
-            "-c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ:.- "
-            "-c load_system_dawg=0 -c load_freq_dawg=0")
+            "-c tessedit_char_whitelist=0123456789ABCDEFabcdef:.- "
+            "-c load_system_dawg=0 -c load_freq_dawg=0 "
+            "-c textord_equation_detect=0 -c classify_enable_learning=0")
+    # psm 7 (1 dòng) -> nhanh; fallback psm 6 (khối) -> chắc chắn hơn
     return [f"{base} --psm 7", f"{base} --psm 6"]
 
 def fast_pre(img):
@@ -222,4 +227,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
